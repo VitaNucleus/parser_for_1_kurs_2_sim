@@ -18,7 +18,6 @@ def get_next_page(list_li, num):
             return 'https://perm.cian.ru' + href
     return None
 
-# TODO продумать логику сбора данных, так как пока, что она не точна
 def parse_page(url, i, res, num = 2):
     while True:
         response = requests.get(url)
@@ -27,10 +26,11 @@ def parse_page(url, i, res, num = 2):
 
     soup = BeautifulSoup(response.text, 'html.parser')
     next_url = None
+    main_div = soup.find('div', {'class': '_32bbee5fda--wrapper--W0WqH'})
 
-    for div in soup.find_all('div', {'data-name': 'CommercialOfferCard',
-                                     'class': '_32bbee5fda--offer-container--Zhu18'}):
-
+    for div in main_div.find_all('div', {'data-name': 'CommercialOfferCard',
+                                     'class': '_32bbee5fda--offer-container--Zhu18',
+                                     }):
         # if 'class' in list(div.attrs):
         #     if div['class'] and div['class'][0] == "_32bbee5fda--container--N0wtY":
         #         res[f'{i}'] = div.text
@@ -45,7 +45,7 @@ def parse_page(url, i, res, num = 2):
 def main_function():
     num = 1
     for url in urls:
-        i = 1
+        i = 0
         res = {}
         print(url)
         parse_page(url, i, res)
