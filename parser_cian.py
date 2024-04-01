@@ -9,6 +9,7 @@ urls = ['https://perm.cian.ru/cat.php?deal_type=sale&engine_version=2&offer_type
         # 'https://perm.cian.ru/snyat-kommercheskiy-uchastok/',
         # 'https://perm.cian.ru/kupit-kommercheskiy-uchastok/']
 
+
 def get_next_page(list_li, num):
     for li in list_li:
         if li.text == f'{num}':
@@ -17,6 +18,26 @@ def get_next_page(list_li, num):
                 href = href[20::]
             return 'https://perm.cian.ru' + href
     return None
+
+
+def parse_ad(url):
+    while True:
+        response = requests.get(url)
+        if response.status_code == 200:
+            break
+
+    result = {}
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    all_li = soup.find_all('li', {'class': 'a10a3f92e9--item--jW0Mi a10a3f92e9--item--hm6MM',
+                              'data-name': 'AdditionalFeatureItem'})
+
+    for li in all_li:
+
+
+    return None
+
 
 def parse_page(url, i, res, num = 2):
     while True:
@@ -32,12 +53,13 @@ def parse_page(url, i, res, num = 2):
                                      'class': '_32bbee5fda--offer-container--Zhu18',
                                      }):
         a = div.find('a', {'data-name': 'CommercialTitle'})
+        if i == 0:
+            parameters = parse_ad(a['href'])
         i += 1
-        print(a)
     div_pagination = soup.find('div', {'data-name': 'Pagination'})
-    next_url = get_next_page(div_pagination.find_all_next('li'), num)
-    if next_url:
-        parse_page(next_url, i, res, num + 1)
+    # next_url = get_next_page(div_pagination.find_all_next('li'), num)
+    # if next_url:
+    #     parse_page(next_url, i, res, num + 1)
 
 
 def main_function():
