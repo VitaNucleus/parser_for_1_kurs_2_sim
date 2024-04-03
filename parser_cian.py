@@ -21,21 +21,27 @@ def get_next_page(list_li, num):
 
 
 def area(string):
-    k = len(string) - 1
-    s = str()
-    # while i != " ":
-    #     s += string[i]
-    #     i -= 1
-    p = 0
-    for i in string:
-        if i == " ":
+    import re
+
+    snum = re.sub(r'[^\d.]', '', string.replace(",", "."))
+
+    i = 0
+    for p in string:
+        if p not in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "."]:
             break
-        p += 1
-    k = 0
-    number = float(string[::p])
-    print(number)
-    print(s)
-    return number
+        i += 1
+    if string[i] == " ":
+        i += 1
+    sarea = string[i::]
+
+    area = float(snum)
+
+    if sarea in ["Га", "га"]:
+        area *= 1000
+    if sarea in ["А", "а"]:
+        area *= 100
+    a = 0
+    return area
 
 
 def parse_ad(url):
