@@ -44,6 +44,31 @@ def area(string):
     return area
 
 
+def make_parameters(result, objects):
+    for object in objects:
+        print(object.text)
+        if object.contents[0].text == 'Тип здания':
+            result['type'] = object.contents[1].text
+        elif object.contents[0].text == 'Категория здания':
+            result['category'] = object.contents[1].text
+        elif object.contents[0].text == 'Этажность':
+            result['floors'] = object.contents[1].text
+        elif object.contents[0].text == 'Этаж':
+            result['floor'] = object.contents[1].text
+        if object.contents[0].text == 'Год постройки':
+            if 'year' in list(result):
+                if result['year'] != object.contents[1].text:
+                    result['year'] = object.contents[1].text
+            else:
+                result['year'] = object.contents[1].text
+        elif object.contents[0].text == 'Общая площадь' or object.contents[0].text == "Площадь":
+            if 'area' in list(result):
+                if result['area'] != object.contents[1].text:
+                    result['area'] = area(object.contents[1].text)
+            else:
+                result['area'] = area(object.contents[1].text)
+
+
 def parse_ad(url):
     while True:
         response = requests.get(url)
@@ -56,39 +81,12 @@ def parse_ad(url):
 
     all_li = soup.find_all('li', {'class': 'a10a3f92e9--item--jW0Mi a10a3f92e9--item--hm6MM',
                               'data-name': 'AdditionalFeatureItem'})
-
-    for li in all_li:
-        if li.contents[0].text == 'Год постройки':
-            result['year'] = li.contents[1].text
-        elif li.contents[0].text == 'Тип здания':
-            result['type'] = li.contents[1].text
-        elif li.contents[0].text == 'Категория здания':
-            result['category'] = li.contents[1].text
-        elif li.contents[0].text == 'Общая площадь':
-            result['area'] = area(li.contents[1].text)
-
+    make_parameters(result, all_li)
+    print(url, result)
     divs = soup.find_all('div', {'class': 'a10a3f92e9--item--Jp5Qv', 'data-name': 'ObjectFactoidsItem'})
-
-    for div in divs:
-        d = div.find('div', {'class': 'a10a3f92e9--text--eplgM'})
-        if d.contents[0].text == 'Год постройки':
-            if 'year' in list(result):
-                if result['year'] != d.contents[1].text:
-                    # print(url, 'change year')
-                    result['year'] = d.contents[1].text
-            else:
-                # print(url, "make year")
-                result['year'] = d.contents[1].text
-        elif d.contents[0].text == 'Этажность':
-            result['floors'] = d.contents[1].text
-        elif d.contents[0].text == 'Площадь':
-            if 'area' in list(result):
-                if result['area'] != d.contents[1].text:
-                    # print(url, "change area")
-                    result['area'] = area(d.contents[1].text)
-            else:
-                # print(url, "make area")
-                result['area'] = area(d.contents[1].text)
+    make_parameters(result, divs)
+    print(url, result)
+    print(divs)
 
     return result
 
@@ -108,7 +106,7 @@ def parse_page(url, i, result, num = 2):
         a = div.find('a', {'data-name': 'CommercialTitle'})
 
         parameters = parse_ad(a['href'])
-        result[f'{a["href"]}'] = parameters
+        # result[f'{a["href"]}'] = parameters
         i += 1
     print(i)
     with open("json.txt", 'w') as file:
@@ -125,7 +123,8 @@ def main_function():
         i = 0
         res = {}
         print(url)
-        parse_page(url, i, res)
+        # parse_page(url, i, res)
+        parse_ad("https://perm.cian.ru/sale/commercial/300337408/")
         num += 1
 
 
