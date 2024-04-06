@@ -45,8 +45,10 @@ def area(string):
 
 
 def make_parameters(result, objects):
+
     for object in objects:
-        print(object.text)
+        if object.name == "div":
+            object = object.find("div", {"class": "a10a3f92e9--text--eplgM"})
         if object.contents[0].text == 'Тип здания':
             result['type'] = object.contents[1].text
         elif object.contents[0].text == 'Категория здания':
@@ -84,9 +86,10 @@ def parse_ad(url):
     make_parameters(result, all_li)
     print(url, result)
     divs = soup.find_all('div', {'class': 'a10a3f92e9--item--Jp5Qv', 'data-name': 'ObjectFactoidsItem'})
+
     make_parameters(result, divs)
     print(url, result)
-    print(divs)
+    # print(divs)
 
     return result
 
@@ -122,9 +125,9 @@ def main_function():
     for url in urls:
         i = 0
         res = {}
-        print(url)
-        # parse_page(url, i, res)
-        parse_ad("https://perm.cian.ru/sale/commercial/300337408/")
+        # print(url)
+        parse_page(url, i, res)
+        # parse_ad("https://perm.cian.ru/sale/commercial/300337408/")
         num += 1
 
 
