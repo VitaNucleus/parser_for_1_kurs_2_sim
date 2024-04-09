@@ -2,12 +2,13 @@ import requests
 from bs4 import BeautifulSoup
 import json
 
+
 urls = ['https://perm.cian.ru/cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=1&'
-        'office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&office_type%5B4%5D=11&region=4927',]
-        # 'https://perm.cian.ru/cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D='
-        # '1&office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&region=4927',
-        # 'https://perm.cian.ru/snyat-kommercheskiy-uchastok/',
-        # 'https://perm.cian.ru/kupit-kommercheskiy-uchastok/']
+        'office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&office_type%5B4%5D=11&region=4927',
+        'https://perm.cian.ru/cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D='
+        '1&office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&region=4927',
+        'https://perm.cian.ru/snyat-kommercheskiy-uchastok/',
+        'https://perm.cian.ru/kupit-kommercheskiy-uchastok/']
 
 
 def get_next_page(list_li, num):
@@ -20,10 +21,19 @@ def get_next_page(list_li, num):
     return None
 
 
+def change_flors(string):
+    floor = ""
+    for i in string:
+        if i == " ":
+            break
+        floor += i
+    return int(floor)
+
+
 def area(string):
     import re
 
-    snum = re.sub(r'[^\d.]', '', string.replace(",", "."))
+    strnum = re.sub(r'[^\d.]', '', string.replace(",", "."))
 
     i = 0
     for p in string:
@@ -32,20 +42,19 @@ def area(string):
         i += 1
     if string[i] == " ":
         i += 1
-    sarea = string[i::]
+    strarea = string[i::]
 
-    area = float(snum)
+    area = float(strnum)
 
-    if sarea in ["Га", "га"]:
+    if strarea in ["Га", "га"]:
         area *= 1000
-    if sarea in ["А", "а"]:
+    if strarea in ["А", "а"]:
         area *= 100
-    a = 0
+
     return area
 
 
 def make_parameters(result, objects):
-
     for object in objects:
         if object.name == "div":
             object = object.find("div", {"class": "a10a3f92e9--text--eplgM"})
@@ -56,7 +65,7 @@ def make_parameters(result, objects):
         elif object.contents[0].text == 'Этажность':
             result['floors'] = object.contents[1].text
         elif object.contents[0].text == 'Этаж':
-            result['floor'] = object.contents[1].text
+            result['floor'] = change_flors(object.contents[1].text)
         if object.contents[0].text == 'Год постройки':
             if 'year' in list(result):
                 if result['year'] != object.contents[1].text:
@@ -84,16 +93,20 @@ def parse_ad(url):
     all_li = soup.find_all('li', {'class': 'a10a3f92e9--item--jW0Mi a10a3f92e9--item--hm6MM',
                               'data-name': 'AdditionalFeatureItem'})
     make_parameters(result, all_li)
-    print(url, result)
-    divs = soup.find_all('div', {'class': 'a10a3f92e9--item--Jp5Qv', 'data-name': 'ObjectFactoidsItem'})
 
+    divs = soup.find_all('div', {'class': 'a10a3f92e9--item--Jp5Qv', 'data-name': 'ObjectFactoidsItem'})
     make_parameters(result, divs)
-    print(url, result)
-    # print(divs)
+
+    additional_div = soup.find_all('div', {"data-name": "TechnicalCharacter",
+                                           "class": "a10a3f92e9--container--tu25B"})
+    if additional_div:
+        result["additional_info"] = []
+        for div in additional_div[0]:
+            result["additional_info"].append(div.text)
 
     return result
 
-def parse_page(url, i, result, num = 2):
+def parse_page(url, result, num = 2):
     while True:
         response = requests.get(url)
         if response.status_code == 200:
@@ -109,25 +122,22 @@ def parse_page(url, i, result, num = 2):
         a = div.find('a', {'data-name': 'CommercialTitle'})
 
         parameters = parse_ad(a['href'])
-        # result[f'{a["href"]}'] = parameters
-        i += 1
-    print(i)
-    with open("json.txt", 'w') as file:
-        json.dump(result, file, indent=4)
+        result[f'{a["href"]}'] = parameters
+
     div_pagination = soup.find('div', {'data-name': 'Pagination'})
-    # next_url = get_next_page(div_pagination.find_all_next('li'), num)
-    # if next_url:
-    #     parse_page(next_url, i, res, num + 1)
+    next_url = get_next_page(div_pagination.find_all_next('li'), num)
+    if next_url:
+        parse_page(next_url, result, num + 1)
+
+    with open(f"json{num}.txt", 'w') as file:
+        json.dump(result, file, indent=4)
 
 
 def main_function():
     num = 1
     for url in urls:
-        i = 0
         res = {}
-        # print(url)
-        parse_page(url, i, res)
-        # parse_ad("https://perm.cian.ru/sale/commercial/300337408/")
+        parse_page(url, res)
         num += 1
 
 
