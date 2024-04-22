@@ -113,6 +113,9 @@ def parse_ad(url):
        Сперва с помощью requests получаем уро. Затем с помощью BeautifulSoup начинаем парсинг. Далее с помощью метода
        find_all находим все li содержащие параметры и они определяются в словарь. После подобные манипуляции проводятся
        с div и дополнительными параметрами. В конце определятся цена записи"""
+    import re
+
+
     # async with aiohttp.ClientSession() as session:
     #     async with session.get(url) as response:
     while True:
@@ -140,7 +143,8 @@ def parse_ad(url):
             pars_address(address_div, result)
 
             cost = soup.find('div', {'data-testid': 'price-amount', "class": 'a10a3f92e9--amount--ON6i1'})
-            result['cost'] = cost.contents[0].text[:-1]
+            result['cost'] = cost.contents[0].text
+            result['cost'] = float(re.sub(r'[^\d.]', '', result['cost'].replace(",", ".")))
 
             return result
 
@@ -182,8 +186,10 @@ def main_function():
         dir = os.path.abspath(__file__).replace('parser_for_1_kurs_2_sim\parser_cian.py',
                                                 f'project_1_kurs_2_sim\cache\cian\json_{n}.json',
                                                 1)
+
         with open(dir, "w") as file:
             json.dump(res, file, indent=4)
+        n += 1
 
 # Условие позволяющие запускать код из терминала
 if __name__ == "__main__":
