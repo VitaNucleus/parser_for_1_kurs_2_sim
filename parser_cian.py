@@ -2,16 +2,17 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import json
+from time import sleep
 import os
 
 load_dotenv()
 # Урлы, по которым будет производиться поиск адресов с параметрами
 urls = ['https://perm.cian.ru/cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=1&'
-        'office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&office_type%5B4%5D=11&region=4927',]
-        # 'https://perm.cian.ru/cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D='
-        # '1&office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&region=4927',
-        # 'https://perm.cian.ru/snyat-kommercheskiy-uchastok/',
-        # 'https://perm.cian.ru/kupit-kommercheskiy-uchastok/']
+        'office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&office_type%5B4%5D=11&region=4927',
+        'https://perm.cian.ru/cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D='
+        '1&office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&region=4927',
+        'https://perm.cian.ru/snyat-kommercheskiy-uchastok/',
+        'https://perm.cian.ru/kupit-kommercheskiy-uchastok/']
 
 
 def get_next_page(list_li, num):
@@ -102,9 +103,13 @@ def pars_address(additional_div, result):
     all_a = additional_div.find_all('a')
     result['address']['region'] = all_a[0].text
     result['address']['city'] = all_a[1].text
-    result['address']['district'] = all_a[2].text
-    result['address']['street'] = all_a[3].text
-    result['address']['house'] = all_a[4].text
+    if len(all_a) < 4:
+        result['address']['district'] = all_a[2].text
+        result['address']['street'] = all_a[3].text
+        result['address']['house'] = all_a[4].text
+    else:
+        result['address']['street'] = all_a[2].text
+        result['address']['house'] = all_a[3].text
 
 
 def parse_ad(url):
@@ -119,10 +124,10 @@ def parse_ad(url):
     # async with aiohttp.ClientSession() as session:
     #     async with session.get(url) as response:
     while True:
+        sleep(1)
         response = requests.get(url)
         if response.status_code == 200:
             result = {}
-
             soup = BeautifulSoup(response.text, 'html.parser')
 
             all_li = soup.find_all('li', {'class': 'a10a3f92e9--item--jW0Mi a10a3f92e9--item--hm6MM',
@@ -143,8 +148,11 @@ def parse_ad(url):
             pars_address(address_div, result)
 
             cost = soup.find('div', {'data-testid': 'price-amount', "class": 'a10a3f92e9--amount--ON6i1'})
-            result['cost'] = cost.contents[0].text
-            result['cost'] = float(re.sub(r'[^\d.]', '', result['cost'].replace(",", ".")))
+            if cost:
+                result['cost'] = cost.contents[0].text
+                result['cost'] = float(re.sub(r'[^\d.]', '', result['cost'].replace(",", ".")))
+            else:
+                result['cost'] = -1
 
             return result
 
@@ -153,6 +161,7 @@ def parse_page(url, result, num = 2):
 
        После того как пропарсятся все адреса вызывается эта же функция, но уже со следующей страницы"""
     while True:
+        sleep(1)
         response = requests.get(url)
         if response.status_code == 200:
             break
@@ -170,12 +179,10 @@ def parse_page(url, result, num = 2):
         result[f'{a["href"]}'] = parameters
 
     div_pagination = soup.find('div', {'data-name': 'Pagination'})
-    # next_url = get_next_page(div_pagination.find_all_next('li'), num)
-    # if next_url:
-    #     parse_page(next_url, result, num + 1)
-    #
-    # with open(f"json{num}.txt", 'w') as file:
-    #     json.dump(result, file, indent=4)
+    next_url = get_next_page(div_pagination.find_all_next('li'), num)
+    if next_url:
+        parse_page(next_url, result, num + 1)
+
     return result
 
 def main_function():
@@ -190,6 +197,7 @@ def main_function():
         with open(dir, "w") as file:
             json.dump(res, file, indent=4)
         n += 1
+
 
 # Условие позволяющие запускать код из терминала
 if __name__ == "__main__":
