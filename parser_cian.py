@@ -1,16 +1,17 @@
-import requests
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-import json
+from bs4 import BeautifulSoup
 from time import sleep
+import requests
+import json
 import os
+import re
 
 load_dotenv()
 # Урлы, по которым будет производиться поиск адресов с параметрами
-urls = ['https://perm.cian.ru/cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=1&'
-        'office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&office_type%5B4%5D=11&region=4927',
-        'https://perm.cian.ru/cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D='
-        '1&office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&region=4927',
+urls = [#'https://perm.cian.ru/cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=1&'
+        #'office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&office_type%5B4%5D=11&region=4927',
+        #'https://perm.cian.ru/cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D='
+        #'1&office_type%5B1%5D=2&office_type%5B2%5D=3&office_type%5B3%5D=5&region=4927',
         'https://perm.cian.ru/snyat-kommercheskiy-uchastok/',
         'https://perm.cian.ru/kupit-kommercheskiy-uchastok/']
 
@@ -29,7 +30,7 @@ def get_next_page(list_li, num):
     return None
 
 
-def change_flors(string):
+def change_flor(string):
     """Функция возвращает целочисленное значение для этажа"""
     floor = ""
     for i in string:
@@ -46,6 +47,9 @@ def area(string):
        сравнивая полученное занчение А или Га и домножаем на необходимый множитель"""
     import re
 
+    if string[-1] == ".":
+        string = string[:-1]
+
     strnum = re.sub(r'[^\d.]', '', string.replace(",", "."))
 
     i = 0
@@ -58,13 +62,29 @@ def area(string):
     strarea = string[i::]
 
     area = float(strnum)
-
-    if strarea in ["Га", "га"]:
+    if strarea in [" Га", " га"]:
         area *= 1000
-    if strarea in ["А", "а"]:
+    elif strarea in [" А", " а", " сот.", " сот"]:
         area *= 100
-
     return area
+
+
+def many_areas(result, soup):
+    """Функция возвращает словарь площадей в виде числа с плавающей точкой
+
+          С помощью регулярных выражений находится число в строке, затем с помощью цикла расширение Га или А. Затем
+          сравнивая полученное занчение А или Га и домножаем на необходимый множитель"""
+
+    divs = soup.find_all('div', {"data-name": "AreasRow", "class": "a10a3f92e9--row--YiBFW"})
+    costs = []
+    areas = []
+    for div in divs:
+        a = area(div.contents[1].contents[0].text)
+        areas.append(a)
+        c = area(div.contents[2].contents[0].text)
+        costs.append(c)
+    result["costs"] = costs
+    result['areas'] = areas
 
 
 def make_parameters(result, objects):
@@ -72,6 +92,7 @@ def make_parameters(result, objects):
 
        С помощью цикла и условий определяются искомые параметры для результирующего словаря. Если в цикл попадает объект
        с именем div, то он переопределяется с помощью поиска в объекте div с классом (a10a3f92e9--text--eplgM)"""
+
     for object in objects:
         if object.name == "div":
             object = object.find("div", {"class": "a10a3f92e9--text--eplgM"})
@@ -82,19 +103,22 @@ def make_parameters(result, objects):
         elif object.contents[0].text == 'Этажность':
             result['floors'] = object.contents[1].text
         elif object.contents[0].text == 'Этаж':
-            result['floor'] = change_flors(object.contents[1].text)
-        if object.contents[0].text == 'Год постройки':
+            result['floor'] = change_flor(object.contents[1].text)
+        elif object.contents[0].text == 'Год постройки':
             if 'year' in list(result):
                 if result['year'] != object.contents[1].text:
                     result['year'] = object.contents[1].text
             else:
                 result['year'] = object.contents[1].text
-        elif object.contents[0].text == 'Общая площадь' or object.contents[0].text == "Площадь":
+        elif (object.contents[0].text == 'Общая площадь' or object.contents[0].text == "Площадь"
+              or object.contents[0].text == "Площадь участка") :
             if 'area' in list(result):
                 if result['area'] != object.contents[1].text:
                     result['area'] = area(object.contents[1].text)
             else:
                 result['area'] = area(object.contents[1].text)
+        elif object.contents[0].text == "Площади":
+            result['areas'] = True
 
 
 def pars_address(additional_div, result):
@@ -103,10 +127,16 @@ def pars_address(additional_div, result):
     all_a = additional_div.find_all('a')
     result['address']['region'] = all_a[0].text
     result['address']['city'] = all_a[1].text
-    if len(all_a) < 4:
+    len_a = len(all_a)
+    if len_a > 4:
         result['address']['district'] = all_a[2].text
-        result['address']['street'] = all_a[3].text
-        result['address']['house'] = all_a[4].text
+        if len_a < 6:
+            result['address']['street'] = all_a[3].text
+            result['address']['house'] = all_a[4].text
+        else:
+            result['address']['sub_district'] = all_a[3].text
+            result['address']['street'] = all_a[4].text
+            result['address']['house'] = all_a[5].text
     else:
         result['address']['street'] = all_a[2].text
         result['address']['house'] = all_a[3].text
@@ -124,7 +154,7 @@ def parse_ad(url):
     # async with aiohttp.ClientSession() as session:
     #     async with session.get(url) as response:
     while True:
-        sleep(1)
+        sleep(1.5)
         response = requests.get(url)
         if response.status_code == 200:
             result = {}
@@ -137,6 +167,9 @@ def parse_ad(url):
             divs = soup.find_all('div', {'class': 'a10a3f92e9--item--Jp5Qv', 'data-name': 'ObjectFactoidsItem'})
             make_parameters(result, divs)
 
+            if "areas" in list(result):
+                many_areas(result, soup)
+
             additional_div = soup.find_all('div', {"data-name": "TechnicalCharacter",
                                                    "class": "a10a3f92e9--container--tu25B"})
             if additional_div:
@@ -148,9 +181,11 @@ def parse_ad(url):
             pars_address(address_div, result)
 
             cost = soup.find('div', {'data-testid': 'price-amount', "class": 'a10a3f92e9--amount--ON6i1'})
+
             if cost:
-                result['cost'] = cost.contents[0].text
-                result['cost'] = float(re.sub(r'[^\d.]', '', result['cost'].replace(",", ".")))
+                if "areas" not in list(result):
+                    result['cost'] = cost.contents[0].text
+                    result['cost'] = float(re.sub(r'[^\d.]', '', result['cost'].replace(",", ".")))
             else:
                 result['cost'] = -1
 
@@ -161,7 +196,7 @@ def parse_page(url, result, num = 2):
 
        После того как пропарсятся все адреса вызывается эта же функция, но уже со следующей страницы"""
     while True:
-        sleep(1)
+        sleep(1.5)
         response = requests.get(url)
         if response.status_code == 200:
             break
@@ -187,8 +222,9 @@ def parse_page(url, result, num = 2):
 
 def main_function():
     """Основная функция, которая запускает парсинг"""
-    n = 0
+    n = 2
     for url in urls:
+        print(n)
         res = parse_page(url, {})
         dir = os.path.abspath(__file__).replace('parser_for_1_kurs_2_sim\parser_cian.py',
                                                 f'project_1_kurs_2_sim\cache\cian\json_{n}.json',
