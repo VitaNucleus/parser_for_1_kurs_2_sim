@@ -222,7 +222,7 @@ def parse_page(url, result, num = 2):
 
 def main_function():
     """Основная функция, которая запускает парсинг"""
-    n = 2
+    n = 0
     for url in urls:
         print(n)
         res = parse_page(url, {})
