@@ -154,7 +154,7 @@ def parse_ad(url):
     # async with aiohttp.ClientSession() as session:
     #     async with session.get(url) as response:
     while True:
-        sleep(1.5)
+        sleep(2)
         response = requests.get(url)
         if response.status_code == 200:
             result = {}
@@ -196,7 +196,7 @@ def parse_page(url, result, num = 2):
 
        После того как пропарсятся все адреса вызывается эта же функция, но уже со следующей страницы"""
     while True:
-        sleep(1.5)
+        sleep(2)
         response = requests.get(url)
         if response.status_code == 200:
             break
