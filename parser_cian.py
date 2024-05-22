@@ -226,8 +226,8 @@ def main_function():
     for url in urls:
         print(n)
         res = parse_page(url, {})
-        dir = os.path.abspath(__file__).replace('parser_for_1_kurs_2_sim\parser_cian.py',
-                                                f'project_1_kurs_2_sim\cache\cian\json_{n}.json',
+        dir = os.path.abspath(__file__).replace('parser_for_1_kurs_2_sim/parser_cian.py',
+                                                f'project_1_kurs_2_sim/cache/cian/json_{n}.json',
                                                 1)
 
         with open(dir, "w") as file:
